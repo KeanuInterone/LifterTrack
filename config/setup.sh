@@ -26,8 +26,8 @@ sed -i '' "s/${replace_app_name}/${normalized_project_name}/g" config/dev.env
 sed -i '' "s/${replace_jwt_secret}/${jwt_secret}/g" config/dev.env
 
 # config the package.json
-sed -i '' "s/${replace_App_Name}/${project_name}/g" project.json
-sed -i '' "s/${replace_app_name}/${normalized_project_name}/g" project.json
+sed -i '' "s/${replace_App_Name}/${project_name}/g" package.json
+sed -i '' "s/${replace_app_name}/${normalized_project_name}/g" package.json
 
 # config the docker-compose.yml
 sed -i '' "s/${replace_app_name}/${normalized_project_name}/g" docker-compose.yml
@@ -42,3 +42,6 @@ openssl x509 -req -days 365 -in ca.csr -signkey ca.key -out ca.cert
 rm ca.csr
 cd ..
 cd ..
+
+# Add dev.env to gitignore
+echo "dev.env" >> .gitignore
