@@ -1,0 +1,21 @@
+version: "3"
+
+services:
+  backend:
+    build: .
+    ports:
+      - 3000:3000
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules # anonymous volume for node_modules only
+    env_file: 
+      - config/dev.env
+  db:
+    image: mongo
+    ports:
+      - 27017:27017
+    volumes: 
+      - app_name_db:/data/db
+
+volumes:
+  app_name_db:
