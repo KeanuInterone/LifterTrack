@@ -21,6 +21,7 @@ replace_app_name=app_name
 replace_jwt_secret=jwt_secret
 
 # config dev.env file
+mv config/dev.env.sample config/dev.env
 sed -i '' "s/${replace_App_Name}/${project_name}/g" config/dev.env
 sed -i '' "s/${replace_app_name}/${normalized_project_name}/g" config/dev.env
 sed -i '' "s/${replace_jwt_secret}/${jwt_secret}/g" config/dev.env
@@ -42,6 +43,3 @@ openssl x509 -req -days 365 -in ca.csr -signkey ca.key -out ca.cert
 rm ca.csr
 cd ..
 cd ..
-
-# Add dev.env to gitignore
-echo "dev.env" >> .gitignore
