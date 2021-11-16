@@ -1,0 +1,143 @@
+#!/usr/bin/env ruby
+
+require 'erb'
+
+model = ARGV[0]
+lower_model = model.downcase
+properties = ARGV.drop(1)
+
+props = []
+properties.each do |property|
+    propArray = property.split(':')
+    name = propArray[0]
+    type = propArray[1]
+    if type == "ref"
+        type = "mongoose.Schema.Types.ObjectId, ref: '#{propArray[2]}'"
+        type = "{ type: #{type} }"
+    elsif type[0] == '['
+        if type[1..-1] == "ref"
+            type = "mongoose.Schema.Types.ObjectId, ref: '#{propArray[2][0..-2]}'"
+        else
+            type = type[1..-2]
+        end
+        type = "[{ type: #{type} }]"
+    else
+        type = "{ type: #{type} }"
+    end
+    props.push({
+        "name" => name,
+        "type" => type
+    })
+end
+
+
+## MODEL FILE ##
+model_template = <<-EOF
+const mongoose = require('mongoose')
+
+const <%=model%> = mongoose.Schema({
+    <% for i in 0..props.length()-1 %>
+    <%=props[i]["name"]%>:<%=props[i]["type"]%><% if i < props.length()-1 %>,<% end %>
+    <% end %>
+})
+
+module.exports = mongoose.model('<%=model%>', <%=model%>)
+EOF
+
+model_renderer = ERB.new(model_template)
+model_result = model_renderer.result()
+
+model_file = File.open("models/#{model}.js", "w")
+model_file.puts(model_result)
+model_file.close
+
+
+## CONTROLLER FILE ##
+controller_template = <<-EOF
+const experss = require('express')
+const router = experss.Router()
+const passport = require('passport')
+const <%=model%> = require('../models/<%=model%>')
+
+// CREATE //
+router.post('/create', passport.authenticate('jwt', { session: false }), async (req, res) => {
+
+	let <%=lower_model%> = new <%=model%>(req.body)
+    <%=lower_model%> = await <%=lower_model%>.save().catch((err) => handleError(res, err))
+    handleIfNull(res, <%=lower_model%>)
+    res.json(<%=lower_model%>)
+
+})
+
+// READ //
+router.get('/:id', passport.authenticate('jwt', { session: false }), async (req, res) => {
+
+    const id = req.params.id
+    const <%=lower_model%> = await <%=model%>.findById(id).catch((err) => handleError(res, err))
+    handleIfNull(res, <%=lower_model%>)
+    res.json(<%=lower_model%>)
+
+})
+
+// UPDATE //
+router.post('/:id/edit', passport.authenticate('jwt', { session: false }), async (req, res) => {
+
+    const id = req.params.id
+    const <%=lower_model%> = await <%=model%>.findOneAndUpdate({_id: id}, req.body, {new: true}).catch((err) => handleError(res, err))
+    handleIfNull(res, <%=lower_model%>)
+    res.json(<%=lower_model%>)
+
+})
+
+
+// DELETE //
+router.delete('/:id/delete', passport.authenticate('jwt', { session: false }), async (req, res) => {
+	
+    const id = req.params.id
+	await <%=model%>.findByIdAndDelete(id).catch((err) => handleError(res, err))
+    res.json({
+        success: true,
+        message: 'Succesfully deleted <%=lower_model%>'
+    })
+
+})
+
+// ERROR //
+const handleError = (res, err) => {
+    res.status(500).json({ error: err.message })
+    return
+}
+const handleIfNull = (res, <%=lower_model%>) => {
+    if (<%=lower_model%> == null) {
+        res.status(404).json({ error: 'not found' })
+        return
+    }
+}
+
+
+module.exports = router
+EOF
+
+controller_renderer = ERB.new(controller_template)
+controller_result = controller_renderer.result()
+
+controller_file = File.open("controllers/#{lower_model}s.js", "w")
+controller_file.puts(controller_result)
+controller_file.close
+
+puts()
+puts()
+puts('*****************************************')
+puts('************  IMPORTANT  ****************')
+puts('*****************************************')
+puts()
+puts('remember to put the following in the config/routes file')
+puts()
+puts("const #{lower_model}s = require('../controllers/#{lower_model}s.js')")
+puts()
+puts("app.use('/#{lower_model}s', #{lower_model}s)")
+puts()
+puts('*****************************************')
+puts('*****************************************')
+puts()
+puts()
