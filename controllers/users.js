@@ -9,89 +9,86 @@ const jwt = require('jsonwebtoken')
 // CREATE //
 router.post('/create', async (req, res) => {
 
-	// password
-	if (req.body.email == null || req.body.password == null) {
-		res.status(500).json({ error: 'Email and Password must be defined' })
+	if (missingEmailOrPassword(req)) {
+		return error("Email and password must be defined", 500, res)
 	}
-	req.body.password = await encryptPassword(req.body.password)
 
-	const user = new User(req.body)
-	user.save().then((user) => {
-		res.json(User.filterUser(user))
-	}).catch((err) => {
-		res.status(500).json({ error: err.message })
-	})
+	req.body.password = await createEncryptedPassword(req.body.password)
+
+	let user = new User(req.body)
+	user = await user.save().catch((err) => error(err.message, 500, res))
+    
+	if (userIsNull(user)) {
+		return error("Error creating user", 500, res)
+	}
+
+    return filteredUser(res, user)
+
 })
 
 
 // READ //
 router.get('/:id', passport.authenticate('jwt', { session: false }), async (req, res) => {
+	
 	var id = req.params.id
-	if (id.toLocaleLowerCase() == "me") {
-		return res.json(User.filterUser(req.user))
+	id = myIdIfMe(id, req)
+
+	if (userDoesNotHavePermission(req.user, id)) {
+		return error("Unauthorized", 401, res)
 	}
 
-	let user = await User.findById(id)
-	res.json(User.filterUser(user))
+	const user = await User.findById(id).catch((err) => error(err.message, 500, res))
+    
+	if (userIsNull(user)) {
+		return error("Error creating user", 500, res)
+	}
+
+	return filteredUser(res, user)
 })
 
 // UPDATE //
-router.post('/edit/:id', passport.authenticate('jwt', { session: false }), (req, res) => {
+router.post('/:id/edit', passport.authenticate('jwt', { session: false }), async (req, res) => {
 
 	var id = req.params.id
-	if (id.toLocaleLowerCase() == "me") {
-		id = req.user._id
+	id = myIdIfMe(id, req)
+
+	if (userDoesNotHavePermission(req.user, id)) {
+		return error("Unauthorized", 401, res)
 	}
-	User.findById(id, (err, user) => {
-		if (err) {
-			res.status(500).send(err.message)
-		} else if (!user) {
-			res.status(400).send('User was not found')
-		} else {
 
-            if (req.body.email != undefined) {
-				user.email = req.body.email
-			}
-			if (req.body.first_name != undefined) {
-				user.first_name = req.body.first_name
-			}
-			if (req.body.last_name != undefined) {
-				user.last_name = req.body.last_name
-			}
+    const user = await User.findOneAndUpdate({_id: id}, req.body, {new: true}).catch((err) => error(err.message, 500, res))
 
-			user.save().then((user) => {
-				res.json(User.filterUser(user))
-			}).catch((err) => {
-				res.status(500).send(err.message)
-			})
-		}
-	})
+	if (userIsNull(user)) {
+		return error("Error saving user", 500, res)
+	}
+
+	return filteredUser(res, user)
+
 })
 
 // DELETE //
-router.delete('/delete/:id', passport.authenticate('jwt', { session: false }), (req, res) => {
+router.delete('/:id/delete', passport.authenticate('jwt', { session: false }), async (req, res) => {
 	var id = req.params.id
-	if (id.toLocaleLowerCase() == "me") {
-		id = req.user._id
-	}
-	User.findByIdAndDelete(id, function (err) {
-		if (err) {
-			res.status(500).send(err.message)
-		} else {
-			res.json({
-				success: true,
-				message: 'Succesfully deleted user'
-			})
-		}
-	})
-})
+	id = myIdIfMe(id, req)
 
+	if (userDoesNotHavePermission(req.user, id)) {
+		return error("Unauthorized", 401, res)
+	}
+
+	await User.findByIdAndDelete(id).catch((err) => error(err.message, 500, res))
+
+	res.json({success: true, message: 'Succesfully deleted user'})
+
+})
 
 // LOGIN //
 router.post('/login', function (req, res, next) {
+	if (missingEmailOrPassword(req)) {
+		return error("Email and password are required", 404, res)
+	}
 	passport.authenticate('local', { session: false }, (err, user) => {
 		if (err) { return next(err); }
-		if (!user) { return res.status(404).send('Incorrect email or password'); }
+		if (!user) { return error('Incorrect email or password', 404, res) }
 		req.logIn(user, () => {
 			const jwtBody = { id: user._id, email: user.email }
 			const token = jwt.sign(jwtBody, process.env.JWT_SECRET)
@@ -101,8 +98,31 @@ router.post('/login', function (req, res, next) {
 })
 
 
-// HELPER //
-function encryptPassword(password) {
+// HELPER FUNCTIONS //
+function filteredUser(res, user) {
+	return res.json(User.filterUser(user))
+}
+
+function missingEmailOrPassword(req) {
+	return !req.body.email || !req.body.password
+}
+
+function userDoesNotHavePermission(user, id) {
+	return !user._id.equals(id)
+}
+
+function userIsNull(user) {
+	return !user
+}
+
+function myIdIfMe(id, req) {
+	if (id.toLocaleLowerCase() == "me") {
+		id = req.user._id
+	}
+	return id
+}
+
+function createEncryptedPassword(password) {
 	return new Promise(resolve => {
 		bcrypt.hash(password, 10, function (err, hash) {
 			if (err) {
@@ -114,5 +134,9 @@ function encryptPassword(password) {
 	})
 }
 
+// ERROR //
+function error(message, code, res) {
+	return res.status(code).json({ error: message })
+}
 
 module.exports = router
