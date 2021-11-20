@@ -1,54 +1,36 @@
-const passport = require('passport')
-const passportLocal = require('passport-local')
-const passportJWT = require('passport-jwt')
-const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
 const User = require('../models/User')
+const error = require('../utils/error')
 
+const authenticateUser = async (req, res, next) => {
 
-function setUp(app) {
-    // PASSPORT SET UP //
-    app.use(passport.initialize())
-    var opts = {}
-    opts.jwtFromRequest = passportJWT.ExtractJwt.fromAuthHeaderAsBearerToken()
-    opts.secretOrKey = process.env.JWT_SECRET;
-    // JWT Authentication
-    passport.use(new passportJWT.Strategy(opts, function (jwt_payload, done) {
-        User.findById(jwt_payload.id, function (err, user) {
-            if (err) {
-                return done(err, false);
-            }
-            if (user) {
-                return done(null, user);
-            } else {
-                return done(null, false);
-            }
-        });
-    }));
-    // Email and password Authentication
-    passport.use(new passportLocal.Strategy({ usernameField: 'email' },
-        function (email, password, done) {
-            User.findOne({ email: email }, async function (err, user) {
-                if (err) { return done(err); }
-                if (!user) { return done(null, false); }
-                let validPassword = await comparePassword(password, user.password)
-                if (!validPassword) { return done(null, false); }
-                return done(null, user);
-            });
-        }
-    ));
+    if (reqestIsMissingAuthToken(req)) return error("Missing authentication token", 401, res)
+    let token = tokenFromRequest(req)
+    let tokenPayload = getTokenPayload(token)
+    if (!tokenPayload) return error("Invalid token", 401, res)
+    let user = await User.findById(tokenPayload.id).catch(err => error(err.message, 401, res))
+    if (!user) return error("Invalid token", 401, res)
+    req.user = user
+    next()
+
+}
+
+function reqestIsMissingAuthToken(req) {
+    return !req.headers.authorization
+}
+
+function tokenFromRequest(req) {
+    let token = req.headers.authorization
+    return token.replace('Bearer ', '')
+}
+
+function getTokenPayload(token) {
+    try {
+        return jwt.verify(token, process.env.JWT_SECRET)
+    } catch (err) {
+        return null
+    }
 }
 
 
-function comparePassword(password, hash) {
-    return new Promise(resolve => {
-        bcrypt.compare(password, hash, function (err, result) {
-            if (err) {
-                console.log(err)
-            } else {
-                resolve(result)
-            }
-        });
-    })
-}
-
-module.exports = { setUp }
+module.exports = authenticateUser

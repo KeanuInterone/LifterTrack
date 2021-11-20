@@ -32,14 +32,3 @@ sed -i '' "s/${replace_app_name}/${normalized_project_name}/g" package.json
 
 # config the docker-compose.yml
 sed -i '' "s/${replace_app_name}/${normalized_project_name}/g" docker-compose.yml
-
-# create self signed certs
-cd config
-mkdir certs
-cd certs
-openssl genrsa -out ca.key
-openssl req -new -key ca.key -out ca.csr -subj "/C=${country}/ST=${state}/emailAddress=${email}"
-openssl x509 -req -days 365 -in ca.csr -signkey ca.key -out ca.cert
-rm ca.csr
-cd ..
-cd ..

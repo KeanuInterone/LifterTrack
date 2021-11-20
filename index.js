@@ -2,7 +2,7 @@ const express = require('express')
 const cors = require('cors')
 const database = require('./config/database')
 const routes = require('./config/routes')
-const auth = require('./config/auth')
+const logger = require('./config/logger')
 
 // CONNECT TO DATABASE //
 database.connect()
@@ -12,8 +12,8 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-// SET UP AUTH //
-auth.setUp(app);
+// SET LOGGER //
+app.use(logger)
 
 // SET ROUTES //
 routes.setRoutes(app)

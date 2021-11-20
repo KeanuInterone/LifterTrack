@@ -56,64 +56,51 @@ model_file.close
 controller_template = <<-EOF
 const experss = require('express')
 const router = experss.Router()
-const passport = require('passport')
 const <%=model%> = require('../models/<%=model%>')
+const authenticateUser = require('../config/auth')
+const error = require('../utils/error')
 
 // CREATE //
-router.post('/create', passport.authenticate('jwt', { session: false }), async (req, res) => {
+router.post('/create', authenticateUser, async (req, res) => {
 
 	let <%=lower_model%> = new <%=model%>(req.body)
-    <%=lower_model%> = await <%=lower_model%>.save().catch((err) => handleError(res, err))
-    handleIfNull(res, <%=lower_model%>)
+    <%=lower_model%> = await <%=lower_model%>.save().catch(err => error(err.message, 500, res))
+    if (!<%=lower_model%>) return error('Error creating <%=lower_model%>', 500, res)
     res.json(<%=lower_model%>)
 
 })
 
 // READ //
-router.get('/:id', passport.authenticate('jwt', { session: false }), async (req, res) => {
+router.get('/:id', authenticateUser, async (req, res) => {
 
     const id = req.params.id
-    const <%=lower_model%> = await <%=model%>.findById(id).catch((err) => handleError(res, err))
-    handleIfNull(res, <%=lower_model%>)
+    const <%=lower_model%> = await <%=model%>.findById(id).catch(err => error(err.message, 500, res))
+    if (!<%=lower_model%>) return error('Not found', 404, res)
     res.json(<%=lower_model%>)
 
 })
 
 // UPDATE //
-router.post('/:id/edit', passport.authenticate('jwt', { session: false }), async (req, res) => {
+router.post('/:id/edit', authenticateUser, async (req, res) => {
 
     const id = req.params.id
-    const <%=lower_model%> = await <%=model%>.findOneAndUpdate({_id: id}, req.body, {new: true}).catch((err) => handleError(res, err))
-    handleIfNull(res, <%=lower_model%>)
+    const <%=lower_model%> = await <%=model%>.findOneAndUpdate({_id: id}, req.body, {new: true}).catch(err => error(err.message, 500, res))
+    if (!<%=lower_model%>) return error('Error editing <%=lower_model%>', 500, res)
     res.json(<%=lower_model%>)
 
 })
 
-
 // DELETE //
-router.delete('/:id/delete', passport.authenticate('jwt', { session: false }), async (req, res) => {
+router.delete('/:id/delete', authenticateUser, async (req, res) => {
 	
     const id = req.params.id
-	await <%=model%>.findByIdAndDelete(id).catch((err) => handleError(res, err))
+	await <%=model%>.findByIdAndDelete(id).catch(err => error(err.message, 500, res))
     res.json({
         success: true,
         message: 'Succesfully deleted <%=lower_model%>'
     })
 
 })
-
-// ERROR //
-const handleError = (res, err) => {
-    res.status(500).json({ error: err.message })
-    return
-}
-const handleIfNull = (res, <%=lower_model%>) => {
-    if (<%=lower_model%> == null) {
-        res.status(404).json({ error: 'not found' })
-        return
-    }
-}
-
 
 module.exports = router
 EOF
