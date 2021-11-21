@@ -1,7 +1,7 @@
 {
-  "name": "app_name",
+  "name": "lifter_track",
   "version": "1.0.0",
-  "description": "Backend for App_Name",
+  "description": "Backend for Lifter Track",
   "main": "index.js",
   "scripts": {
     "start": "npx nodemon index.js",

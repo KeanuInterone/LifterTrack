@@ -15,7 +15,7 @@ services:
     ports:
       - 27017:27017
     volumes: 
-      - app_name_db:/data/db
+      - lifter_track_db:/data/db
 
 volumes:
-  app_name_db:
+  lifter_track_db:

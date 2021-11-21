@@ -1,4 +1,7 @@
 const users = require('../controllers/users.js')
+const exercises = require('../controllers/exercises.js')
+const sets = require('../controllers/sets.js')
+const workouts = require('../controllers/workouts.js')
 
 
 function setRoutes(app) {
@@ -8,6 +11,15 @@ function setRoutes(app) {
 
     // USERS //
     app.use('/users', users) 
+
+    // EXERCISES //
+    app.use('/exercises', exercises)
+
+    // SETS //
+    app.use('/sets', sets)
+
+    // WORKOUTS //
+    app.use('/workouts', workouts)
 
 }
 
