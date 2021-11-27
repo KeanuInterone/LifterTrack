@@ -6,6 +6,7 @@ const error = require('../utils/error')
 
 // GET ALL SETS //
 router.get('/all', authenticateUser, async (req, res) => {
+    if (req.user._doc.role != 'super_admin') return error('Unauthorized', 401, res);
     let sets = await Set.find({}).catch(err => error(err.message, 500, res))
     if (!sets) return error('error getting exercises', 500, res)
     return res.json(sets)

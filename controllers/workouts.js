@@ -3,6 +3,7 @@ const router = experss.Router()
 const Workout = require('../models/Workout')
 const Exercise = require('../models/Exercise')
 const Set = require('../models/Set')
+const SetGroup = require('../models/SetGroup')
 const authenticateUser = require('../config/auth')
 const error = require('../utils/error')
 
@@ -54,6 +55,28 @@ router.delete('/:id/delete', authenticateUser, async (req, res) => {
 
 })
 
+// ADD SET GROUP //
+router.post('/:id/add_set_group', authenticateUser, async (req, res) => {
+
+    let id = req.params.id
+    let workout = await Workout.findById(id).catch(err => error(err.message, 500, res))
+    if (!workout) return error('could not find workout with that id', 404, res)
+    req.body.workout = workout._id
+
+    if (req.user._doc.role != 'super_admin' || !req.body.user) {
+        req.body.user = req.user._id
+    } 
+
+    let setGroup = new SetGroup(req.body)
+    setGroup = await setGroup.save().catch(err => error(err.message, 500, res))
+    if (!setGroup) return error('error creating set group', 500, res)
+
+    workout._doc.set_groups.push(setGroup._id)
+    await workout.save().catch(err => error(err.message, 500, res))
+
+    return res.json(setGroup)
+})
+
 // ADD SET //
 router.post('/:id/add_set', authenticateUser, async (req, res) => {
 
@@ -61,15 +84,16 @@ router.post('/:id/add_set', authenticateUser, async (req, res) => {
     if (req.body.exercise_id) {
         exercise = await Exercise.findById(req.body.exercise_id).catch(err => error(err.message, 500, res))
         if (!exercise) return error('exercise with that id was not found', 404, res)
-    } else if (req.body.exercise_name) {
-        exercise = await Exercise.findOne({name: req.body.exercise_name}).catch(err => error(err.message, 500, res))
-        if (!exercise) {
-            exercise = new Exercise({name: req.body.exercise_name, user: req.user._id})
-            exercise = await exercise.save().catch(err => error(err.message, 500, res))
-            if (!exercise) return error('error creating new exercise', 500, res)
-        }
     } else {
-        return error('missing exercise id or name', 400, res)
+        return error('missing exercise id', 400, res)
+    }
+
+    let setGroup = null
+    if (req.body.set_group_id) {
+        setGroup = await SetGroup.findById(req.body.set_group_id).catch(err => error(err.message, 500, res))
+        if (!setGroup) return error('set group with that id was not found', 404, res)
+    } else {
+        return error('missing set group id', 400, res)
     }
 
     let id = req.params.id
@@ -79,12 +103,16 @@ router.post('/:id/add_set', authenticateUser, async (req, res) => {
     req.body.exercise = exercise._id
     req.body.workout = workout._id
     req.body.user = req.user._id
+    req.body.set_group = setGroup._id
     let set = new Set(req.body)
     set = await set.save().catch(err => error(err.message, 500, res))
     if (!set) return error('error creating set', 500, res)
 
     workout._doc.sets.push(set._id)
     await workout.save().catch(err => error(err.message, 500, res))
+
+    setGroup._doc.sets.push(set._id)
+    await setGroup.save().catch(err => error(err.message, 500, res))
 
     return res.json(set)    
 

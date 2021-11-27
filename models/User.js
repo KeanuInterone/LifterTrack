@@ -15,7 +15,8 @@ const User = mongoose.Schema({
     },
     last_name: {
         type: String
-    }
+    },
+    role: { type: String, enum: ['super_admin', 'admin', 'premium_user', 'free_user'], default: 'free_user', required: true }
 })
 
 User.statics.filterUser = (user) => {

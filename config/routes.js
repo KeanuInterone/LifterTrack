@@ -2,6 +2,10 @@ const users = require('../controllers/users.js')
 const exercises = require('../controllers/exercises.js')
 const sets = require('../controllers/sets.js')
 const workouts = require('../controllers/workouts.js')
+const setgroups = require('../controllers/setgroups.js')
+const tags = require('../controllers/tags.js')
+
+
 
 
 function setRoutes(app) {
@@ -21,6 +25,11 @@ function setRoutes(app) {
     // WORKOUTS //
     app.use('/workouts', workouts)
 
+    // SETGROUPS //
+    app.use('/setgroups', setgroups)
+
+    // TAGS //
+    app.use('/tags', tags)
 }
 
 module.exports = { setRoutes }

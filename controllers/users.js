@@ -11,7 +11,8 @@ router.post('/create', async (req, res) => {
 
 	if (missingEmailOrPassword(req)) return error("Email and password must be defined", 500, res)
 	req.body.password = await createEncryptedPassword(req.body.password)
-	let user = new User(req.body)
+	const { role, ...filterCreateUser } = req.body // exclude role fom create, defaults to free_user
+	let user = new User(filterCreateUser)
 	user = await user.save().catch((err) => error(err.message, 500, res))
 	if (!user) return error("Error creating user", 500, res)
     return filteredUser(res, user)
@@ -35,6 +36,10 @@ router.post('/:id/edit', authenticateUser, async (req, res) => {
 	var id = req.params.id
 	id = myIdIfMe(id, req)
 	if (userDoesNotHavePermission(req.user, id)) return error("Unauthorized", 401, res)
+	if (req.user._doc.role != "super_admin") {
+		const { role, ...filterEditUser } = req.body
+		req.body = filterEditUser
+	}
     const user = await User.findOneAndUpdate({_id: id}, req.body, {new: true}).catch((err) => error(err.message, 500, res))
 	if (!user) return error("Error creating user", 500, res)
 	return filteredUser(res, user)
@@ -85,7 +90,7 @@ function passwordIsValid(password, hash) {
 
 // PERMISSIONS //
 function userDoesNotHavePermission(user, id) {
-	return !user._id.equals(id)
+	return !(user._id.equals(id) || user._doc.role == 'super_admin')
 }
 
 
