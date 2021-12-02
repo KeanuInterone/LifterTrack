@@ -10,7 +10,9 @@ const error = require('../utils/error')
 // CREATE //
 router.post('/create', authenticateUser, async (req, res) => {
 
-    req.body.user = req.user._id
+    if (req.user._doc.role != 'super_admin' || !req.body.user) {
+        req.body.user = req.user._id
+    } 
 	let workout = new Workout(req.body)
     workout = await workout.save().catch(err => error(err.message, 500, res))
     if (!workout) return error('Error creating workout', 500, res)
@@ -66,6 +68,11 @@ router.post('/:id/add_set_group', authenticateUser, async (req, res) => {
     if (req.user._doc.role != 'super_admin' || !req.body.user) {
         req.body.user = req.user._id
     } 
+
+    if (!req.body.focus_exercise) return error('focus_exercise is required to create set group', 400, res)
+    let exercise = await Exercise.findById(req.body.focus_exercise).catch(err => error(err.message, 500, res))
+    if (!exercise) return error('Focus exercise was not found', 404, res)
+
 
     let setGroup = new SetGroup(req.body)
     setGroup = await setGroup.save().catch(err => error(err.message, 500, res))

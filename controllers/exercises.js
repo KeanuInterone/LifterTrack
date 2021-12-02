@@ -14,9 +14,9 @@ router.get('/all', authenticateUser, async (req, res) => {
 // CREATE //
 router.post('/create', authenticateUser, async (req, res) => {
 
-    if (req.user._doc.role != 'super_admin') {
+    if (req.user._doc.role != 'super_admin' || !req.body.user) {
         req.body.user = req.user._id
-    }
+    } 
 	let exercise = new Exercise(req.body)
     exercise = await exercise.save().catch(err => error(err.message, 500, res))
     if (!exercise) return error('Error creating exercise', 500, res)
