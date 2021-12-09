@@ -4,7 +4,11 @@ const Exercise = mongoose.Schema({
     
     name:{ type: String, required: true },
 
-    type:{ type:String, enum: ['barbell', 'weight', 'weights', 'value', 'bodyweight'], required: true },
+    type:{ type: String, enum: ['barbell', 'weight', 'bodyweight'], required: true },
+
+    track_per_side:{ type: Boolean, default: false },
+
+    weight_input:{ type: String, enum: ['plates', 'value'] },
     
     user:{ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 

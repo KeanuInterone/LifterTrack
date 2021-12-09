@@ -10,12 +10,12 @@ services:
       - /usr/src/app/node_modules # anonymous volume for node_modules only
     env_file: 
       - config/dev.env
-  db:
-    image: mongo
-    ports:
-      - 27017:27017
-    volumes: 
-      - lifter_track_db:/data/db
+  # db:
+  #   image: mongo
+  #   ports:
+  #     - 27017:27017
+  #   volumes: 
+  #     - lifter_track_db:/data/db
 
 volumes:
   lifter_track_db:

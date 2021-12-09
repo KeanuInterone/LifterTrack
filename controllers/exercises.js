@@ -17,7 +17,19 @@ router.post('/create', authenticateUser, async (req, res) => {
     if (req.user._doc.role != 'super_admin' || !req.body.user) {
         req.body.user = req.user._id
     } 
-	let exercise = new Exercise(req.body)
+    if(!req.body.name || !req.body.type) return error('Exercise name and type required to create exercise', 409, res)
+    if(req.body.type == 'weight' && (!req.body.hasOwnProperty('track_per_side') || !req.body.weight_input)) return error('Exercise with weight type requires track_per_side and weight_input set', 409, res)
+    if(req.body.type == 'barbell') {
+        req.body.track_per_side = false
+        req.body.weight_input = 'plates'
+    }
+    if(req.body.type == 'bodyweight') {
+        delete req.body.track_per_side
+        delete req.body.weight_input
+    }
+    let exercise = await Exercise.findOne({name: req.body.name, user: req.body.user}).catch(err => error(err.message, 500, res))
+    if (exercise) return error('Exercise with that name already exists', 409, res)
+	exercise = new Exercise(req.body)
     exercise = await exercise.save().catch(err => error(err.message, 500, res))
     if (!exercise) return error('Error creating exercise', 500, res)
     res.json(exercise)
