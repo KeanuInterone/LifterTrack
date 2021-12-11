@@ -15,7 +15,7 @@ router.post('/create', async (req, res) => {
 	const { role, ...filterCreateUser } = req.body // exclude role fom create, defaults to free_user
 	let user = new User(filterCreateUser)
 	user = await user.save().catch((err) => error(err.message, 500, res))
-	await createDefaultTagsForUser(user, res)
+	createDefaultTagsForUser(user, res)
 	if (!user) return error("Error creating user", 500, res)
     return filteredUser(res, user)
 
@@ -121,10 +121,10 @@ function createEncryptedPassword(password) {
 	})
 }
 
-async function createDefaultTagsForUser(user, res) {
+function createDefaultTagsForUser(user, res) {
 	let defaultTags = ['Push', 'Pull', 'Legs']
 	let tagIds = []
-	defaultTags.forEach(tagString => {
+	defaultTags.forEach(async tagString => {
 		let tag = new Tag({name: tagString, user: user._id});
     	tag = await tag.save().catch(err => error(err.message, 500, res))
 		tagIds.push(tag._id)
