@@ -1,11 +1,13 @@
 const experss = require('express')
 const router = experss.Router()
 const Exercise = require('../models/Exercise')
+const Tag = require('../models/Tag')
 const authenticateUser = require('../config/auth')
 const error = require('../utils/error')
 
 // GET ALL EXERCISES //
 router.get('/all', authenticateUser, async (req, res) => {
+    if (req.user._doc.role != 'super_admin') return error('Unauthorized', 401, res)
     let exercises = await Exercise.find({}).catch(err => error(err.message, 500, res))
     if (!exercises) return error('error getting exercises', 500, res)
     return res.json(exercises)
@@ -73,6 +75,28 @@ router.get('/', authenticateUser, async (req, res) => {
     let exercises = await Exercise.find({user: req.user._id}).catch(err => error(err.message, 500, res))
     if (!exercises) return error('error getting exercises', 500, res)
     return res.json(exercises)
+})
+
+// ADD TAG //
+router.post('/:id/add_tag', authenticateUser, async (req, res) => {
+    if (req.user._doc.role != 'super_admin' || !req.body.user) {
+        req.body.user = req.user._id
+    } 
+    const id = req.params.id
+    let exercise = await Exercise.findById(id).catch(err => error(err.message, 500, res))
+    if (!exercise) return error('Exercise not found', 404, res)
+    if(!req.body.name) return error('Name is required to add a tag', 409, res)
+    let tag = await Tag.findOne({ name: req.body.name, user: req.body.user }).catch(err => error(err.message, 500, res))
+    if(!tag) {
+        tag = new Tag(req.body)
+        tag = await tag.save().catch(err => error(err.message, 500, res))
+        if (!tag) return error('Error creating tag', 500, res)
+    }
+    if(!exercise._doc.tags.includes(tag._id)) {
+        exercise._doc.tags.push(tag._id)
+        exercise = await exercise.save().catch(err => error(err.message, 500, res))
+    }
+    return res.json(exercise)
 })
 
 

@@ -5,6 +5,7 @@ const authenticateUser = require('../config/auth')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const error = require('../utils/error')
+const Tag = require('../models/Tag')
 
 // CREATE //
 router.post('/create', async (req, res) => {
@@ -14,6 +15,7 @@ router.post('/create', async (req, res) => {
 	const { role, ...filterCreateUser } = req.body // exclude role fom create, defaults to free_user
 	let user = new User(filterCreateUser)
 	user = await user.save().catch((err) => error(err.message, 500, res))
+	await createDefaultTagsForUser(user, res)
 	if (!user) return error("Error creating user", 500, res)
     return filteredUser(res, user)
 
@@ -116,6 +118,16 @@ function createEncryptedPassword(password) {
 				resolve(hash)
 			}
 		});
+	})
+}
+
+async function createDefaultTagsForUser(user, res) {
+	let defaultTags = ['Push', 'Pull', 'Legs']
+	let tagIds = []
+	defaultTags.forEach(tagString => {
+		let tag = new Tag({name: tagString, user: user._id});
+    	tag = await tag.save().catch(err => error(err.message, 500, res))
+		tagIds.push(tag._id)
 	})
 }
 
