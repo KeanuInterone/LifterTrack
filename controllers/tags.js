@@ -52,4 +52,11 @@ router.delete('/:id/delete', authenticateUser, async (req, res) => {
 
 })
 
+// GET USERS EXERCISES //
+router.get('/', authenticateUser, async (req, res) => {
+    let tags = await Tag.find({user: req.user._id}).catch(err => error(err.message, 500, res))
+    if (!tags) return error('error getting tags', 500, res)
+    return res.json(tags)
+})
+
 module.exports = router
