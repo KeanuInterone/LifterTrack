@@ -125,4 +125,13 @@ router.post('/:id/add_set', authenticateUser, async (req, res) => {
 
 })
 
+router.get('/:id/finish', authenticateUser, async (req, res) => {
+    let id = req.params.id
+    let workout = await Workout.findById(id).catch(err => error(err.message, 500, res))
+    if (!workout) return error('could not find workout with that id', 404, res)
+    workout._doc.end_time = new Date().toISOString()
+    workout = await workout.save().catch(err => error(err.message, 500, res))
+    return res.json(workout)
+})
+
 module.exports = router
