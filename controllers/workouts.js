@@ -7,13 +7,37 @@ const SetGroup = require('../models/SetGroup')
 const authenticateUser = require('../config/auth')
 const error = require('../utils/error')
 
+router.get('/', authenticateUser, async (req, res) => {
+    if (req.user._doc.role != 'super_admin' || !req.body.user) {
+        req.body.user = req.user._id
+    }
+
+    let workouts = await Workout
+        .find({ 
+            user: req.body.user._id 
+        })
+        .limit(10)
+        .sort({ _id: -1 })
+        .populate({
+            path: 'set_groups',
+            populate: {
+                path: 'sets',
+                //model: 'Set'
+            }
+        })
+        .exec()
+    res.json(workouts) 
+
+})
+
+
 // CREATE //
 router.post('/create', authenticateUser, async (req, res) => {
 
     if (req.user._doc.role != 'super_admin' || !req.body.user) {
         req.body.user = req.user._id
-    } 
-	let workout = new Workout(req.body)
+    }
+    let workout = new Workout(req.body)
     workout = await workout.save().catch(err => error(err.message, 500, res))
     if (!workout) return error('Error creating workout', 500, res)
     res.json(workout)
@@ -24,12 +48,12 @@ router.post('/create', authenticateUser, async (req, res) => {
 router.get('/:id', authenticateUser, async (req, res) => {
 
     const id = req.params.id
-    const workout = await Workout.findById(id).populate({ 
+    const workout = await Workout.findById(id).populate({
         path: 'sets',
         populate: {
-          path: 'exercise',
-        } 
-     }).exec().catch(err => error(err.message, 500, res))
+            path: 'exercise',
+        }
+    }).exec().catch(err => error(err.message, 500, res))
     if (!workout) return error('Not found', 404, res)
     res.json(workout)
 
@@ -39,7 +63,7 @@ router.get('/:id', authenticateUser, async (req, res) => {
 router.post('/:id/edit', authenticateUser, async (req, res) => {
 
     const id = req.params.id
-    const workout = await Workout.findOneAndUpdate({_id: id}, req.body, {new: true}).catch(err => error(err.message, 500, res))
+    const workout = await Workout.findOneAndUpdate({ _id: id }, req.body, { new: true }).catch(err => error(err.message, 500, res))
     if (!workout) return error('Error editing workout', 500, res)
     res.json(workout)
 
@@ -47,9 +71,9 @@ router.post('/:id/edit', authenticateUser, async (req, res) => {
 
 // DELETE //
 router.delete('/:id/delete', authenticateUser, async (req, res) => {
-	
+
     const id = req.params.id
-	await Workout.findByIdAndDelete(id).catch(err => error(err.message, 500, res))
+    await Workout.findByIdAndDelete(id).catch(err => error(err.message, 500, res))
     res.json({
         success: true,
         message: 'Succesfully deleted workout'
@@ -67,7 +91,7 @@ router.post('/:id/add_set_group', authenticateUser, async (req, res) => {
 
     if (req.user._doc.role != 'super_admin' || !req.body.user) {
         req.body.user = req.user._id
-    } 
+    }
 
     if (!req.body.focus_exercise) return error('focus_exercise is required to create set group', 400, res)
     let exercise = await Exercise.findById(req.body.focus_exercise).catch(err => error(err.message, 500, res))
@@ -121,7 +145,7 @@ router.post('/:id/add_set', authenticateUser, async (req, res) => {
     setGroup._doc.sets.push(set._id)
     await setGroup.save().catch(err => error(err.message, 500, res))
 
-    return res.json(set)    
+    return res.json(set)
 
 })
 
