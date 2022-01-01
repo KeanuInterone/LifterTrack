@@ -6,6 +6,8 @@ const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const error = require('../utils/error')
 const Tag = require('../models/Tag')
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_OATH_CLIENT_ID);
 
 // CREATE //
 router.post('/create', async (req, res) => {
@@ -15,15 +17,15 @@ router.post('/create', async (req, res) => {
 	const { role, ...filterCreateUser } = req.body // exclude role fom create, defaults to free_user
 	let user = new User(filterCreateUser)
 	user = await user.save().catch((err) => error(err.message, 500, res))
-	createDefaultTagsForUser(user, res)
 	if (!user) return error("Error creating user", 500, res)
-    return filteredUser(res, user)
+	createDefaultTagsForUser(user, res)
+	return filteredUser(res, user)
 
 })
 
 // READ //
 router.get('/:id', authenticateUser, async (req, res) => {
-	
+
 	var id = req.params.id
 	id = myIdIfMe(id, req)
 	if (userDoesNotHavePermission(req.user, id)) return error("Unauthorized", 401, res)
@@ -42,7 +44,7 @@ router.post('/:id/edit', authenticateUser, async (req, res) => {
 		const { role, ...filterEditUser } = req.body
 		req.body = filterEditUser
 	}
-    const user = await User.findOneAndUpdate({_id: id}, req.body, {new: true}).catch((err) => error(err.message, 500, res))
+	const user = await User.findOneAndUpdate({ _id: id }, req.body, { new: true }).catch((err) => error(err.message, 500, res))
 	if (!user) return error("Error creating user", 500, res)
 	return filteredUser(res, user)
 
@@ -50,18 +52,18 @@ router.post('/:id/edit', authenticateUser, async (req, res) => {
 
 // DELETE //
 router.delete('/:id/delete', authenticateUser, async (req, res) => {
-	
+
 	var id = req.params.id
 	id = myIdIfMe(id, req)
 	if (userDoesNotHavePermission(req.user, id)) return error("Unauthorized", 401, res)
 	await User.findByIdAndDelete(id).catch((err) => error(err.message, 500, res))
-	res.json({success: true, message: 'Succesfully deleted user'})
+	res.json({ success: true, message: 'Succesfully deleted user' })
 
 })
 
 // LOGIN //
 router.post('/login', async (req, res, next) => {
-	
+
 	if (missingEmailOrPassword(req)) return error("Email and password are required", 404, res)
 	const email = req.body.email
 	const password = req.body.password
@@ -79,16 +81,54 @@ function authToken(user, res) {
 }
 
 function passwordIsValid(password, hash) {
-    return new Promise(resolve => {
-        bcrypt.compare(password, hash, function (err, result) {
-            if (err) {
-                console.log(err)
-            } else {
-                resolve(result)
-            }
-        });
-    })
+	return new Promise(resolve => {
+		bcrypt.compare(password, hash, function (err, result) {
+			if (err) {
+				console.log(err)
+			} else {
+				resolve(result)
+			}
+		});
+	})
 }
+
+// AUTHORIZE OATH TOKEN //
+router.post('/authorizeOAuthToken', async (req, res) => {
+	if (missingOauthFields(req)) return error("email, token, provider, first_name, and last_name fields are required", 409, res)
+	let email = req.body.email
+	let token = req.body.token
+	let provider = req.body.provider
+	let verifiedEmail
+	let first_name
+	let last_name
+	switch (provider) {
+		case "google":
+			try {
+				const ticket = await client.verifyIdToken({
+					idToken: token,
+					audience: [process.env.GOOGLE_IOS_CLIENT_ID],
+				})
+				let payload = ticket.getPayload()
+				verifiedEmail = payload.email
+				first_name = payload.given_name
+				last_name = payload.family_name
+			} catch (error) {
+				return error("There was an error authenticating with google", 500, res)
+			}
+			break
+		default:
+			return error("Provider was not recognized", 409, res)
+	}
+	if (email != verifiedEmail) return error("Auth token does not belong to you", 409, res)
+	let user = await User.findOne({ email: email }).catch((err) => error(err.message, 500, res))
+	if (!user) {
+		user = new User({email: email, first_name: first_name, last_name: last_name})
+		user = await user.save().catch((err) => error(err.message, 500, res))
+		if (!user) return error("Error creating user", 500, res)
+		createDefaultTagsForUser(user, res)
+	}
+	return authToken(user, res)
+})
 
 // PERMISSIONS //
 function userDoesNotHavePermission(user, id) {
@@ -120,15 +160,15 @@ function createEncryptedPassword(password) {
 		});
 	})
 }
-
-function createDefaultTagsForUser(user, res) {
+async function createDefaultTagsForUser(user, res) {
 	let defaultTags = ['Push', 'Pull', 'Legs']
-	let tagIds = []
-	defaultTags.forEach(async tagString => {
-		let tag = new Tag({name: tagString, user: user._id});
-    	tag = await tag.save().catch(err => error(err.message, 500, res))
-		tagIds.push(tag._id)
-	})
+	for (const tagString of defaultTags) {
+		let tag = new Tag({ name: tagString, user: user._id })
+		await tag.save().catch(err => error(err.message, 500, res))
+	}
+}
+function missingOauthFields(req) {
+	return !req.body.email || !req.body.token || !req.body.provider
 }
 
 module.exports = router
