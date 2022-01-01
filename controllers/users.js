@@ -8,6 +8,8 @@ const error = require('../utils/error')
 const Tag = require('../models/Tag')
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_OATH_CLIENT_ID);
+const verifyAppleToken = require('verify-apple-id-token').default;
+
 
 // CREATE //
 router.post('/create', async (req, res) => {
@@ -94,11 +96,10 @@ function passwordIsValid(password, hash) {
 
 // AUTHORIZE OATH TOKEN //
 router.post('/authorizeOAuthToken', async (req, res) => {
-	if (missingOauthFields(req)) return error("email, token, provider, first_name, and last_name fields are required", 409, res)
-	let email = req.body.email
+	if (missingOauthFields(req)) return error("token, and provider fields are required", 409, res)
 	let token = req.body.token
 	let provider = req.body.provider
-	let verifiedEmail
+	let email
 	let first_name
 	let last_name
 	switch (provider) {
@@ -109,17 +110,29 @@ router.post('/authorizeOAuthToken', async (req, res) => {
 					audience: [process.env.GOOGLE_IOS_CLIENT_ID],
 				})
 				let payload = ticket.getPayload()
-				verifiedEmail = payload.email
+				email = payload.email
 				first_name = payload.given_name
 				last_name = payload.family_name
-			} catch (error) {
+			} catch (err) {
 				return error("There was an error authenticating with google", 500, res)
 			}
 			break
+		case "apple":
+			try {
+				const jwtClaims = await verifyAppleToken({
+					idToken: token,
+					clientId: 'com.liftertrack.app',
+				});
+				email = jwtClaims.email
+				first_name = req.body.first_name
+				last_name = req.body.last_name
+			} catch (err) {
+				return error("There was an error authenticating with apple: " + err.message, 500, res)
+			}
+			break			
 		default:
 			return error("Provider was not recognized", 409, res)
 	}
-	if (email != verifiedEmail) return error("Auth token does not belong to you", 409, res)
 	let user = await User.findOne({ email: email }).catch((err) => error(err.message, 500, res))
 	if (!user) {
 		user = new User({email: email, first_name: first_name, last_name: last_name})
@@ -168,7 +181,7 @@ async function createDefaultTagsForUser(user, res) {
 	}
 }
 function missingOauthFields(req) {
-	return !req.body.email || !req.body.token || !req.body.provider
+	return !req.body.token || !req.body.provider
 }
 
 module.exports = router
