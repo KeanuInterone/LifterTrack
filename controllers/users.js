@@ -107,7 +107,7 @@ router.post('/authorizeOAuthToken', async (req, res) => {
 			try {
 				const ticket = await client.verifyIdToken({
 					idToken: token,
-					audience: [process.env.GOOGLE_IOS_CLIENT_ID, process.env.GOOGLE_ANDROID_CLIENT_ID],
+					requiredAudience: [process.env.GOOGLE_IOS_CLIENT_ID, process.env.GOOGLE_ANDROID_CLIENT_ID],
 				})
 				let payload = ticket.getPayload()
 				email = payload.email
