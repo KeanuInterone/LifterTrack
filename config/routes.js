@@ -11,7 +11,7 @@ const tags = require('../controllers/tags.js')
 function setRoutes(app) {
 
     // APP ROUTES //
-    app.get('/', (req, res) => res.send(`Welcome to the ${process.env.APP_NAME} backend`))
+    app.get('/', (req, res) => res.send(`<H1>Welcome to the ${process.env.APP_NAME} backend</H1><p>If you need to, email me at keanu@liftertrack.com</p>`))
 
     // USERS //
     app.use('/users', users) 

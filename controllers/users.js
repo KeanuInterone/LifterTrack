@@ -114,7 +114,7 @@ router.post('/authorizeOAuthToken', async (req, res) => {
 				first_name = payload.given_name
 				last_name = payload.family_name
 			} catch (err) {
-				return error("There was an error authenticating with google", 500, res)
+				return error("There was an error authenticating with google: " + err.message, 500, res)
 			}
 			break
 		case "apple":
