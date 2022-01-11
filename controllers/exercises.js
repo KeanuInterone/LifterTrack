@@ -2,6 +2,7 @@ const experss = require('express')
 const router = experss.Router()
 const Exercise = require('../models/Exercise')
 const Tag = require('../models/Tag')
+const SetGroup = require('../models/SetGroup')
 const authenticateUser = require('../config/auth')
 const error = require('../utils/error')
 
@@ -98,6 +99,66 @@ router.post('/:id/add_tag', authenticateUser, async (req, res) => {
     }
     return res.json(exercise)
 })
+
+// PROGRESSION 
+router.get('/:id/progression', authenticateUser, async (req, res) => {
+
+    let id = req.params.id
+    let exercise = await Exercise.findById(id).catch(err => error(err.message, 500, res))
+    if (!exercise) return error('Exercise not found', 404, res)
+    let userID = req.user._id
+    if (!exercise._doc.user.equals(userID)) return error('Unauthorized', 401, res)
+    
+    // GET ALL THE SET GROUPS
+    let setGroups = await SetGroup
+        .find({focus_exercise: id})
+        .sort({ _id: 1 })
+        .populate({
+            path: 'sets',
+        })
+        .exec()
+
+    // GET THE BEST EFORT FROM EACH
+    let bestEforts = []
+    let minValue
+    let maxValue = 0
+    let index = 0
+    for (let setGroup of setGroups) {
+
+        // FIND MAX VALUE IN SET
+        if (setGroup.sets.length == 0) continue
+        let setMaxValue = 0
+        let setTime
+        for (let set of setGroup.sets) {
+            let value = set.weight
+            if (exercise._doc.exercise_type == 'bodyweight') {
+                value = set.reps
+            }
+            if (value > setMaxValue) {
+                setMaxValue = set.weight
+                setTime = set.time_stamp
+            }
+        }
+
+        // PUSH BEST EFFORT OF SET INTO EFFORTS
+        bestEforts.push({
+            index: index++,
+            date: setTime,
+            value: setMaxValue
+        })
+
+        // SET MIN AND MAX VALUES
+        if (minValue == undefined || setMaxValue < minValue) {
+            minValue = setMaxValue
+        }
+        if (setMaxValue > maxValue) {
+            maxValue = setMaxValue
+        }
+    }
+
+    // RETURN THE DATA
+    res.json({min: minValue, max: maxValue, efforts: bestEforts})
+});
 
 
 
