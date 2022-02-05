@@ -156,6 +156,9 @@ router.get('/:id/progression', authenticateUser, async (req, res) => {
         }
     }
 
+    // If there are no set groups min isnt defined and needs to be set to 0
+    minValue = 0;
+
     // RETURN THE DATA
     res.json({min: minValue, max: maxValue, efforts: bestEforts})
 });
