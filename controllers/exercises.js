@@ -126,15 +126,16 @@ router.get('/:id/progression', authenticateUser, async (req, res) => {
 
         // FIND MAX VALUE IN SET
         if (setGroup.sets.length == 0) continue
+
         let setMaxValue = 0
         let setTime
         for (let set of setGroup.sets) {
             let value = set.weight
-            if (exercise._doc.exercise_type == 'bodyweight') {
+            if (exercise.type == 'bodyweight') {
                 value = set.reps
             }
             if (value > setMaxValue) {
-                setMaxValue = set.weight
+                setMaxValue = value
                 setTime = set.time_stamp
             }
         }
