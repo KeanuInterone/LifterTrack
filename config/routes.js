@@ -4,7 +4,7 @@ const sets = require('../controllers/sets.js')
 const workouts = require('../controllers/workouts.js')
 const setgroups = require('../controllers/setgroups.js')
 const tags = require('../controllers/tags.js')
-
+const trainers = require('../controllers/trainers.js')
 
 
 
@@ -30,6 +30,10 @@ function setRoutes(app) {
 
     // TAGS //
     app.use('/tags', tags)
+
+    // TRAINERS //
+    app.use('/trainers', trainers)
+
 }
 
 module.exports = { setRoutes }
