@@ -79,7 +79,7 @@ router.post('/login', async (req, res, next) => {
 function authToken(user, res) {
 	const jwtBody = { id: user._id, email: user.email }
 	const token = jwt.sign(jwtBody, process.env.JWT_SECRET)
-	return res.json({ jwt: token })
+	return res.json({ jwt: token, user: User.filterUser(user) })
 }
 
 function passwordIsValid(password, hash) {
