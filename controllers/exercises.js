@@ -165,6 +165,46 @@ router.get('/:id/progression', authenticateUser, async (req, res) => {
 
 
 
+// LAST SET // 
+router.get('/:id/last_set', authenticateUser, async (req, res) => {
+
+    let id = req.params.id
+    let exercise = await Exercise.findById(id).catch(err => error(err.message, 500, res))
+    if (!exercise) return error('Exercise not found', 404, res)
+    let userID = req.user._id
+    if (!exercise._doc.user.equals(userID)) return error('Unauthorized', 401, res)
+    
+    // GET THE LAST SET GROUP
+    let setGroups = await SetGroup
+        .find({focus_exercise: id})
+        .limit(2)
+        .sort({ _id: -1 })
+        .populate({
+            path: 'sets',
+        })
+        .exec()
+    
+    // CHECK IF THERE IS A PREVIOUS SET
+    if (setGroups.length < 2) return res.json({setGroup: null, best: 0})
+
+    // GET THE PREVIOUS SET GROUP
+    let setGroup = setGroups[1]; 
+
+    // FIND THE BEST SET
+    let setMaxValue = 0
+    for (let set of setGroup.sets) {
+        let value = set.weight
+        if (exercise.type == 'bodyweight') {
+            value = set.reps
+        }
+        if (value > setMaxValue) {
+            setMaxValue = value
+        }
+    }
+
+    res.json({setGroup: setGroup, best: setMaxValue})
+});
+
 module.exports = router
 function setDumbbellDefaults(req) {
     req.body.track_per_side = true
